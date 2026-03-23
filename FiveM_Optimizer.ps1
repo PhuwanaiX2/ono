@@ -41,7 +41,8 @@ try {
     $PhysicalDisk = Get-PhysicalDisk | Where-Object { $_.DeviceID -eq $diskNumber } | Select-Object -First 1
     if ($PhysicalDisk.MediaType -eq "SSD" -or $PhysicalDisk.MediaType -eq "NVMe") { $DiskType = "SSD/NVMe" }
     elseif ($PhysicalDisk.BusType -eq "NVMe") { $DiskType = "NVMe" }
-} catch { $DiskType = "Unknown" }
+}
+catch { $DiskType = "Unknown" }
 $DiskFree = [math]::Round((Get-PSDrive ($SystemDrive.Replace(":", ""))).Free / 1GB, 1)
 
 Write-Host "`n💻 PC Hardware Specifications:" -ForegroundColor Yellow
@@ -51,7 +52,8 @@ Write-Host "   GPU      : $GPU"
 Write-Host "   Disk     : $DiskType (Free Space on ${SystemDrive} = ${DiskFree} GB)"
 if ($IsModifiedOS -and $ModifiedOSName) {
     Write-Host "   Windows  : $WinEdition (🔧 Modified OS: $ModifiedOSName)" -ForegroundColor Magenta
-} else {
+}
+else {
     Write-Host "   Windows  : $WinEdition"
 }
 Write-Host "-----------------------------------------------------"
@@ -63,11 +65,13 @@ if ($RAM -lt 16) {
     $Recommendation += "   - ⚠️ RAM under 16GB: High risk of 'texture loss' or slow map rendering.`n"
     $Recommendation += "     (Closing background apps and disabling Xbox services is extremely necessary.)`n"
     $EstFPS = "40 - 60 FPS (Recommend Normal/Low settings)"
-} elseif ($RAM -ge 16 -and $RAM -lt 32) {
+}
+elseif ($RAM -ge 16 -and $RAM -lt 32) {
     $Recommendation += "   - ✅ RAM ${RAM}GB: Excellent standard for FiveM.`n"
     $Recommendation += "     (Optimization will focus on reducing micro-stutters and input lag.)`n"
     $EstFPS = "60 - 100+ FPS (Depends on GPU and the server's population)"
-} else {
+}
+else {
     $Recommendation += "   - 🚀 RAM ${RAM}GB: High-End / Streamer Tier.`n"
     $Recommendation += "     (Optimization will maximize framerates and drastically lower input lag.)`n"
     $EstFPS = "120 - 144+ FPS Limitless"
@@ -75,7 +79,8 @@ if ($RAM -lt 16) {
 
 if ($CPU -match "i3|Ryzen 3|Pentium|Celeron") {
     $Recommendation += "   - ⚠️ Entry-Level CPU: Do not leave browsers or heavy background apps open while playing.`n"
-} else {
+}
+else {
     $Recommendation += "   - ✅ High-Performance CPU: The script will unlock 100% priority for the game.`n"
 }
 
@@ -108,16 +113,18 @@ if ($srService -and $srService.Status -ne "Stopped") {
         Enable-ComputerRestore -Drive "$SystemDrive\" -ErrorAction SilentlyContinue
         Checkpoint-Computer -Description "Before FiveM Optimizer" -RestorePointType MODIFY_SETTINGS -ErrorAction Stop
         Write-Host "✅ Restore Point created." -ForegroundColor Green
-    } catch { }
+    }
+    catch { }
 }
 
 Write-Host "`nApplying tweaks natively, please wait..." -ForegroundColor Cyan
 
-function Set-Reg($Path, $Name, $Value, $Type="DWord") {
+function Set-Reg($Path, $Name, $Value, $Type = "DWord") {
     if (-not (Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
     if ($Type) {
         Set-ItemProperty -Path $Path -Name $Name -Value $Value -Type $Type -Force -ErrorAction SilentlyContinue
-    } else {
+    }
+    else {
         Set-ItemProperty -Path $Path -Name $Name -Value $Value -Force -ErrorAction SilentlyContinue
     }
 }
@@ -138,10 +145,10 @@ Set-Reg "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" "AllowGameDVR" 0
 Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" "GlobalUserDisabled" 1
 Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" "BingSearchEnabled" 0
 
-# 4. Mouse Acceleration (Commented out to prevent users feeling the mouse is "slower")
-# Set-Reg "HKCU:\Control Panel\Mouse" "MouseSpeed" "0" "String"
-# Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold1" "0" "String"
-# Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold2" "0" "String"
+# 4. Mouse Acceleration (Raw input 1:1, requires manual DPI adjustment if too slow)
+Set-Reg "HKCU:\Control Panel\Mouse" "MouseSpeed" "0" "String"
+Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold1" "0" "String"
+Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold2" "0" "String"
 
 # 5. Hibernation
 powercfg.exe /hibernate off

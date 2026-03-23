@@ -1,10 +1,10 @@
 # ==============================================================================
-# FiveM Dedicated PC Optimization Script (Fast Admin Edition)
+# FiveM Dedicated PC Optimization Script - V2 (Max Performance & Low Latency)
 # ==============================================================================
 
 # --- SHOP/BRAND SETTINGS ---
 # คุณสามาถเปลี่ยนชื่อร้านหรือทีมงานของคุณตรงนี้ให้ลูกค้าเห็นได้
-$ShopName = "NT SHOP"
+$ShopName = "OONO Shop"
 # ---------------------------
 
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
@@ -17,9 +17,9 @@ Clear-Host
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 Write-Host "=============================================" -ForegroundColor Cyan
-Write-Host "   $ShopName - Performance Optimizer         " -ForegroundColor Cyan
+Write-Host "   $ShopName - Performance Optimizer V2      " -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
-Write-Host "This script will silently apply all performance tweaks." -ForegroundColor White
+Write-Host "This script applies advanced tweaks for Maximum FPS and Minimum Input Lag." -ForegroundColor White
 
 # --- Hardware Detection ---
 $CPU = ((Get-CimInstance Win32_Processor | Select-Object -First 1).Name).Replace("  ", " ").Trim()
@@ -111,7 +111,7 @@ Write-Host "   ⚠️ Note: Actual FPS depends heavily on the specific FiveM ser
 
 Write-Host "=============================================" -ForegroundColor Cyan
 
-$confirm = Read-Host "Proceed with optimization? (Y/N)"
+$confirm = Read-Host "Proceed with V2 optimization? (Y/N)"
 if ($confirm -notmatch "^[Yy]$") { Exit }
 
 Write-Host "`nCreating Restore Point... Please wait." -ForegroundColor Yellow
@@ -120,13 +120,13 @@ $srService = Get-Service -Name "srservice" -ErrorAction SilentlyContinue
 if ($srService -and $srService.Status -ne "Stopped") {
     try {
         Enable-ComputerRestore -Drive "$SystemDrive\" -ErrorAction SilentlyContinue
-        Checkpoint-Computer -Description "Before FiveM Optimizer" -RestorePointType MODIFY_SETTINGS -ErrorAction Stop
+        Checkpoint-Computer -Description "Before FiveM Optimizer V2" -RestorePointType MODIFY_SETTINGS -ErrorAction Stop
         Write-Host "✅ Restore Point created." -ForegroundColor Green
     }
     catch { }
 }
 
-Write-Host "`nApplying tweaks natively, please wait..." -ForegroundColor Cyan
+Write-Host "`nApplying V2 tweaks natively, please wait..." -ForegroundColor Cyan
 
 function Set-Reg($Path, $Name, $Value, $Type = "DWord") {
     if (-not (Test-Path $Path)) { New-Item -Path $Path -Force | Out-Null }
@@ -138,7 +138,7 @@ function Set-Reg($Path, $Name, $Value, $Type = "DWord") {
     }
 }
 
-# 1. Telemetry
+# 1. Telemetry & Tracking
 Set-Reg "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" "AllowTelemetry" 0
 Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" "AllowTelemetry" 0
 Stop-Service -Name diagtrack -Force -ErrorAction SilentlyContinue 
@@ -150,19 +150,28 @@ Set-Reg "HKCU:\System\GameConfigStore" "GameDVR_Enabled" 0
 Set-Reg "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR" "AppCaptureEnabled" 0
 Set-Reg "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" "AllowGameDVR" 0
 
-# 3. Background Apps & Bing Search
+# 3. Background Apps, Bing Search, SysMain & WSearch
 Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" "GlobalUserDisabled" 1
 Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" "BingSearchEnabled" 0
+Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue
+Set-Service -Name SysMain -StartupType Disabled -ErrorAction SilentlyContinue
+Stop-Service -Name WSearch -Force -ErrorAction SilentlyContinue
+Set-Service -Name WSearch -StartupType Disabled -ErrorAction SilentlyContinue
 
-# 4. Mouse Acceleration (Raw input 1:1, requires manual DPI adjustment if too slow)
+# 4. Mouse Acceleration & USB Input Lag (Raw input 1:1)
 Set-Reg "HKCU:\Control Panel\Mouse" "MouseSpeed" "0" "String"
 Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold1" "0" "String"
 Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold2" "0" "String"
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\USB" "DisableSelectiveSuspend" 1 "DWord"
 
-# 5. Hibernation
+# 5. Timer Tweaks (BCDEdit - Smooth Frametimes)
+bcdedit /set useplatformtick yes | Out-Null
+bcdedit /set disabledynamictick yes | Out-Null
+
+# 6. Hibernation
 powercfg.exe /hibernate off
 
-# 6. Ultimate Performance Power Plan
+# 7. Ultimate Performance Power Plan
 $plan = Get-CimInstance -ClassName Win32_PowerPlan -Namespace "root\cimv2\power" | Where-Object ElementName -eq "Ultimate Performance"
 if (-not $plan) {
     powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null | Out-Null
@@ -170,20 +179,32 @@ if (-not $plan) {
 }
 if ($plan) { powercfg -setactive $($plan.InstanceID.Split('{')[1].TrimEnd('}')) }
 
-# 7. Priority & Network Throttling
+# 8. Priority & Network Throttling
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" "Win32PrioritySeparation" 268409095 "DWord"
 Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "NetworkThrottlingIndex" 4294967295 "DWord"
 Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "SystemResponsiveness" 0 "DWord"
 
-# 8. Defender Exclusion
+# 9. Game Specific Threads Priority (V2 Tweak)
+Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "GPU Priority" 8 "DWord"
+Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "Priority" 6 "DWord"
+Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "Scheduling Category" "High" "String"
+Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile\Tasks\Games" "SFIO Priority" "High" "String"
+
+# 10. TCP/IP Latency Reduction (Leatrix Fix)
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "TcpNoDelay" 1 "DWord"
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "TCPAckFrequency" 1 "DWord"
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "TCPDelAckTicks" 0 "DWord"
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "DefaultTTL" 64 "DWord"
+
+# 11. Defender Exclusion
 try { Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\FiveM" -ErrorAction SilentlyContinue } catch {}
 
-# 9. Disable Fullscreen Optimizations & Visual Effects
+# 12. Disable Fullscreen Optimizations & Visual Effects
 Set-Reg "HKCU:\System\GameConfigStore" "GameDVR_DXGIHonorFSEWindowsCompatible" 1
 Set-Reg "HKCU:\System\GameConfigStore" "GameDVR_EFSEFeatureFlags" 0
 Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" 2 "DWord"
 
-# 10. QoS Policy (FiveMLag)
+# 13. QoS Policy (FiveMLag)
 $WinEdition = (Get-CimInstance Win32_OperatingSystem).Caption
 if ($WinEdition -notmatch "Home") {
     Remove-NetQosPolicy -Name "FiveMLag*" -Confirm:$false -ErrorAction SilentlyContinue
@@ -191,6 +212,6 @@ if ($WinEdition -notmatch "Home") {
     New-NetQosPolicy -Name "FiveMLag_GTA5" -AppPathNameMatchCondition "GTA5.exe" -NetworkProfile All -DSCPAction 1 -ErrorAction SilentlyContinue | Out-Null
 }
 
-Write-Host "✅ All settings applied successfully!" -ForegroundColor Green
+Write-Host "✅ All V2 settings applied successfully!" -ForegroundColor Green
 Write-Host "Please restart the PC for changes to take full effect." -ForegroundColor Yellow
 Read-Host "Press Enter to exit..."

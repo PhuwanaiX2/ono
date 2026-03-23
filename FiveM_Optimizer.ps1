@@ -12,6 +12,37 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 
 Clear-Host
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+
+# Force TrueType Font for Thai Support
+try {
+    $fontCode = @"
+using System;
+using System.Runtime.InteropServices;
+public class ConsoleFont {
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    internal struct CONSOLE_FONT_INFO_EX {
+        public uint cbSize; public uint nFont; public short dwFontSizeX; public short dwFontSizeY;
+        public int FontFamily; public int FontWeight;
+        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string FaceName;
+    }
+    [DllImport("kernel32.dll", SetLastError = true)] internal static extern IntPtr GetStdHandle(int nStdHandle);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] internal static extern bool GetCurrentConsoleFontEx(IntPtr hnd, bool bMax, ref CONSOLE_FONT_INFO_EX info);
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] internal static extern bool SetCurrentConsoleFontEx(IntPtr hnd, bool bMax, ref CONSOLE_FONT_INFO_EX info);
+    public static void SetFont() {
+        IntPtr hnd = GetStdHandle(-11);
+        CONSOLE_FONT_INFO_EX info = new CONSOLE_FONT_INFO_EX();
+        info.cbSize = (uint)Marshal.SizeOf(info);
+        if (GetCurrentConsoleFontEx(hnd, false, ref info)) {
+            info.FaceName = "Consolas";
+            SetCurrentConsoleFontEx(hnd, false, ref info);
+        }
+    }
+}
+"@
+    Add-Type -TypeDefinition $fontCode -ErrorAction SilentlyContinue
+    [ConsoleFont]::SetFont()
+} catch {}
+
 Write-Host "=====================================================" -ForegroundColor Cyan
 Write-Host "       FiveM Master Optimizer - System Analysis       " -ForegroundColor Cyan
 Write-Host "=====================================================" -ForegroundColor Cyan

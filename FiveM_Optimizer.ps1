@@ -61,15 +61,31 @@ $IsHomeSKU = $WinEdition -match "Home"
 
 # ตรวจสอบว่าเป็น Modified OS หรือไม่ (AtlasOS, Ghost Spectre, ReviOS, Kernel etc.)
 $IsModifiedOS = $false
+$ModifiedOSName = ""
 if ($WinEdition -match "Atlas|Ghost|Revi|FLAVOR|Kernel|Tiny|Ameliorated") { $IsModifiedOS = $true }
-try { if (Test-Path "HKLM:\SOFTWARE\AtlasOS") { $IsModifiedOS = $true } } catch {}
-try { if (Test-Path "C:\Users\Default\Desktop\Ghost Toolbox.exe") { $IsModifiedOS = $true } } catch {}
+# Registry-based detection
+try { if (Test-Path "HKLM:\SOFTWARE\AtlasOS") { $IsModifiedOS = $true; $ModifiedOSName = "AtlasOS" } } catch {}
+try { if (Test-Path "HKLM:\SOFTWARE\Kernel") { $IsModifiedOS = $true; $ModifiedOSName = "Kernel" } } catch {}
+try { if (Test-Path "HKLM:\SOFTWARE\KernelOS") { $IsModifiedOS = $true; $ModifiedOSName = "Kernel" } } catch {}
+try { if (Test-Path "HKCU:\SOFTWARE\Kernel") { $IsModifiedOS = $true; $ModifiedOSName = "Kernel" } } catch {}
+try { if (Test-Path "HKLM:\SOFTWARE\ReviOS") { $IsModifiedOS = $true; $ModifiedOSName = "ReviOS" } } catch {}
+# File-based detection
+try { if (Test-Path "C:\Users\Default\Desktop\Ghost Toolbox.exe") { $IsModifiedOS = $true; $ModifiedOSName = "Ghost Spectre" } } catch {}
+try { if (Test-Path "C:\Windows\Kernel*.exe") { $IsModifiedOS = $true; $ModifiedOSName = "Kernel" } } catch {}
+try { if (Test-Path "C:\Windows\AtlasModules") { $IsModifiedOS = $true; $ModifiedOSName = "AtlasOS" } } catch {}
+# Service-based detection (Modified OS มักจะปิด services จำนวนมาก)
+$disabledCritical = @('DiagTrack','dmwappushservice','WerSvc','SysMain') | Where-Object {
+    try { (Get-Service $_ -ErrorAction Stop).StartType -eq 'Disabled' } catch { $false }
+}
+if ($disabledCritical.Count -ge 3 -and -not $IsModifiedOS) { $IsModifiedOS = $true; $ModifiedOSName = "Unknown Modified" }
 
 # Disk Info (SSD or HDD)
 $SystemDrive = (Get-CimInstance Win32_OperatingSystem).SystemDrive
 $DiskType = "HDD"
 try {
-    $PhysicalDisk = Get-PhysicalDisk | Where-Object { $_.DeviceID -eq 0 } | Select-Object -First 1
+    $driveLetter = $SystemDrive.Replace(":", "")
+    $diskNumber = (Get-Partition -DriveLetter $driveLetter -ErrorAction Stop).DiskNumber
+    $PhysicalDisk = Get-PhysicalDisk | Where-Object { $_.DeviceID -eq $diskNumber } | Select-Object -First 1
     if ($PhysicalDisk.MediaType -eq "SSD" -or $PhysicalDisk.MediaType -eq "NVMe") { $DiskType = "SSD/NVMe" }
     elseif ($PhysicalDisk.BusType -eq "NVMe") { $DiskType = "NVMe" }
 } catch { $DiskType = "ไม่สามารถตรวจสอบได้" }
@@ -80,7 +96,11 @@ Write-Host "   CPU      : $CPU"
 Write-Host "   RAM      : ${RAM} GB"
 Write-Host "   GPU      : $GPU"
 Write-Host "   Disk     : $DiskType (พื้นที่ว่างบนไดร์ฟ ${SystemDrive} = ${DiskFree} GB)"
-Write-Host "   Windows  : $WinEdition"
+if ($IsModifiedOS -and $ModifiedOSName) {
+    Write-Host "   Windows  : $WinEdition (🔧 Modified OS: $ModifiedOSName)" -ForegroundColor Magenta
+} else {
+    Write-Host "   Windows  : $WinEdition"
+}
 Write-Host "-----------------------------------------------------"
 
 # --- 2. FiveM Performance Estimation & Logic ---
@@ -173,7 +193,7 @@ Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection
 Set-RegPath "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection"
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name AllowTelemetry -Value 0 -Force -ErrorAction SilentlyContinue
 Set-Service -Name diagtrack -StartupType Disabled -ErrorAction SilentlyContinue
-Set-Service -Name wermgr -StartupType Disabled -ErrorAction SilentlyContinue
+Set-Service -Name WerSvc -StartupType Disabled -ErrorAction SilentlyContinue
 
 # 2. Disable Xbox Game Bar & GameDVR
 Write-Host "[2/14] Disabling Xbox Game Bar and GameDVR..."
@@ -265,8 +285,8 @@ if ($IsHomeSKU) {
 } else {
     Write-Host "[14/14] Applying QoS Policy (FiveMLag) for smooth sync..."
     Remove-NetQosPolicy -Name "FiveMLag*" -Confirm:$false -ErrorAction SilentlyContinue
-    New-NetQosPolicy -Name "FiveMLag_FiveM" -AppPathNameMatchCondition "FiveM*.exe" -NetworkProfile All -DSCPAction 1 -ThrottleRateActionBitsPerSecond 8192 -ErrorAction SilentlyContinue | Out-Null
-    New-NetQosPolicy -Name "FiveMLag_GTA5" -AppPathNameMatchCondition "GTA5.exe" -NetworkProfile All -DSCPAction 1 -ThrottleRateActionBitsPerSecond 8192 -ErrorAction SilentlyContinue | Out-Null
+    New-NetQosPolicy -Name "FiveMLag_FiveM" -AppPathNameMatchCondition "FiveM*.exe" -NetworkProfile All -DSCPAction 1 -ErrorAction SilentlyContinue | Out-Null
+    New-NetQosPolicy -Name "FiveMLag_GTA5" -AppPathNameMatchCondition "GTA5.exe" -NetworkProfile All -DSCPAction 1 -ErrorAction SilentlyContinue | Out-Null
 }
 
 Write-Host "`n=====================================================" -ForegroundColor Green

@@ -65,13 +65,15 @@ Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollect
 Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name AllowTelemetry -Force -ErrorAction SilentlyContinue
 Set-Service -Name diagtrack -StartupType Automatic -ErrorAction SilentlyContinue
 Start-Service -Name diagtrack -ErrorAction SilentlyContinue
-Set-Service -Name wermgr -StartupType Automatic -ErrorAction SilentlyContinue
+Set-Service -Name WerSvc -StartupType Manual -ErrorAction SilentlyContinue
 
 # 2. Enable Xbox Game Bar & GameDVR
 Write-Host "[2/14] Restoring Xbox Game Bar and GameDVR..."
 Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name GameDVR_Enabled -Value 1 -Force -ErrorAction SilentlyContinue
 Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR" -Name AppCaptureEnabled -Value 1 -Force -ErrorAction SilentlyContinue
 Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -Name AllowGameDVR -Force -ErrorAction SilentlyContinue
+# Xbox App ที่ถูกลบจาก Optimizer จะไม่สามารถลงคืนอัตโนมัติได้
+Write-Host "   ℹ️ หมายเหตุ: Xbox Game Bar ที่ถูกลบไปแล้ว ต้องลงใหม่จาก Microsoft Store" -ForegroundColor DarkCyan
 
 # 3. Enable Background Apps
 Write-Host "[3/14] Restoring Background Apps..."
@@ -94,6 +96,13 @@ powercfg.exe /hibernate on
 # 7. Set Balanced Power Plan (ค่าเริ่มต้น)
 Write-Host "[7/14] Restoring Balanced Power Plan..."
 powercfg -setactive 381b4222-f694-41f0-9685-ff5bb260df2e
+# ลบ Ultimate Performance Power Plan ที่ Optimizer สร้างขึ้น
+$ultPlan = powercfg -list 2>$null | Select-String "Ultimate Performance"
+if ($ultPlan) {
+    $guid = ($ultPlan.ToString().Trim() -split '\s+')[3]
+    if ($guid) { powercfg -delete $guid 2>$null }
+    Write-Host "   ✅ ลบ Ultimate Performance Power Plan แล้ว" -ForegroundColor DarkGreen
+}
 
 # 8. Reset PriorityControl (ค่าเริ่มต้น = 2 / 0x00000002)
 Write-Host "[8/14] Restoring PriorityControl (default = 2)..."

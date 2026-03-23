@@ -26,7 +26,15 @@ if ($confirm -notmatch "^[Yy]$") { Exit }
 
 Write-Host "`nReverting tweaks... please wait." -ForegroundColor Cyan
 
+# Helper function to print progress
+function Show-Progress($StepNum, $StepName) {
+    Write-Host "[$StepNum/10] $StepName..." -NoNewline -ForegroundColor White
+    Start-Sleep -Milliseconds 200
+    Write-Host " Done!" -ForegroundColor Green
+}
+
 # 1. Telemetry
+Show-Progress "1" "Restoring Telemetry & Error Reporting"
 Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" -Name AllowTelemetry -Force -ErrorAction SilentlyContinue
 Remove-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" -Name AllowTelemetry -Force -ErrorAction SilentlyContinue
 Set-Service -Name diagtrack -StartupType Automatic -ErrorAction SilentlyContinue
@@ -34,23 +42,28 @@ Start-Service -Name diagtrack -ErrorAction SilentlyContinue
 Set-Service -Name WerSvc -StartupType Manual -ErrorAction SilentlyContinue
 
 # 2. Xbox Game Bar & DVR
+Show-Progress "2" "Restoring Xbox Game Bar & DVR"
 Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name GameDVR_Enabled -Value 1 -Force -ErrorAction SilentlyContinue
 Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR" -Name AppCaptureEnabled -Value 1 -Force -ErrorAction SilentlyContinue
 Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -Name AllowGameDVR -Force -ErrorAction SilentlyContinue
 
 # 3. Background Apps & Bing Search
+Show-Progress "3" "Restoring Background Apps & Bing Search"
 Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" -Name GlobalUserDisabled -Value 0 -Force -ErrorAction SilentlyContinue
 Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name BingSearchEnabled -Value 1 -Force -ErrorAction SilentlyContinue
 
 # 4. Mouse Acceleration (Default string values)
+Show-Progress "4" "Restoring Mouse Acceleration to Defaults"
 Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name MouseSpeed -Value "1" -Type String -Force -ErrorAction SilentlyContinue
 Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name MouseThreshold1 -Value "6" -Type String -Force -ErrorAction SilentlyContinue
 Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name MouseThreshold2 -Value "10" -Type String -Force -ErrorAction SilentlyContinue
 
 # 5. Hibernation
+Show-Progress "5" "Restoring Hibernation"
 powercfg.exe /hibernate on
 
 # 6. Balanced Power Plan & Remove Ultimate
+Show-Progress "6" "Restoring Balanced Power Plan"
 powercfg -setactive 381b4222-f694-41f0-9685-ff5bb260df2e
 $ultPlan = powercfg -list 2>$null | Select-String "Ultimate Performance"
 if ($ultPlan) {
@@ -59,19 +72,23 @@ if ($ultPlan) {
 }
 
 # 7. Priority & Network Throttling
+Show-Progress "7" "Restoring CPU Priority & Network Throttling"
 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name Win32PrioritySeparation -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -Value 10 -Type DWord -Force -ErrorAction SilentlyContinue
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "SystemResponsiveness" -Value 20 -Type DWord -Force -ErrorAction SilentlyContinue
 
 # 8. Remove Defender Exclusion
+Show-Progress "8" "Removing Defender Exclusion"
 try { Remove-MpPreference -ExclusionPath "$env:LOCALAPPDATA\FiveM" -ErrorAction SilentlyContinue } catch {}
 
 # 9. Restore Fullscreen Optimizations & Visual Effects
+Show-Progress "9" "Restoring Fullscreen Optimizations"
 Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
 Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_EFSEFeatureFlags" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
 Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
 
 # 10. QoS Policy Remove
+Show-Progress "10" "Removing Advanced QoS Policy"
 Remove-NetQosPolicy -Name "FiveMLag*" -Confirm:$false -ErrorAction SilentlyContinue
 
 Write-Host "✅ System restored to Windows defaults successfully!" -ForegroundColor Green

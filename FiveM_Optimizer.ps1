@@ -138,7 +138,15 @@ function Set-Reg($Path, $Name, $Value, $Type = "DWord") {
     }
 }
 
+# Helper function to print progress
+function Show-Progress($StepNum, $StepName) {
+    Write-Host "[$StepNum/10] $StepName..." -NoNewline -ForegroundColor White
+    Start-Sleep -Milliseconds 400
+    Write-Host " Done!" -ForegroundColor Green
+}
+
 # 1. Telemetry
+Show-Progress "1" "Disabling Telemetry & Error Reporting"
 Set-Reg "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DataCollection" "AllowTelemetry" 0
 Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\DataCollection" "AllowTelemetry" 0
 Stop-Service -Name diagtrack -Force -ErrorAction SilentlyContinue 
@@ -146,23 +154,28 @@ Set-Service -Name diagtrack -StartupType Disabled -ErrorAction SilentlyContinue
 Set-Service -Name WerSvc -StartupType Disabled -ErrorAction SilentlyContinue
 
 # 2. Xbox Game Bar & DVR
+Show-Progress "2" "Disabling Xbox Game Bar & DVR"
 Set-Reg "HKCU:\System\GameConfigStore" "GameDVR_Enabled" 0
 Set-Reg "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR" "AppCaptureEnabled" 0
 Set-Reg "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" "AllowGameDVR" 0
 
 # 3. Background Apps & Bing Search
+Show-Progress "3" "Disabling Background Apps & Bing Search"
 Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" "GlobalUserDisabled" 1
 Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" "BingSearchEnabled" 0
 
 # 4. Mouse Acceleration (Raw input 1:1, requires manual DPI adjustment if too slow)
+Show-Progress "4" "Disabling Mouse Acceleration (Raw Input 1:1)"
 Set-Reg "HKCU:\Control Panel\Mouse" "MouseSpeed" "0" "String"
 Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold1" "0" "String"
 Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold2" "0" "String"
 
 # 5. Hibernation
+Show-Progress "5" "Disabling Hibernation to save disk space"
 powercfg.exe /hibernate off
 
 # 6. Ultimate Performance Power Plan
+Show-Progress "6" "Enabling Ultimate Performance Power Plan"
 $plan = Get-CimInstance -ClassName Win32_PowerPlan -Namespace "root\cimv2\power" | Where-Object ElementName -eq "Ultimate Performance"
 if (-not $plan) {
     powercfg -duplicatescheme e9a42b02-d5df-448d-aa00-03f14749eb61 2>$null | Out-Null
@@ -171,19 +184,23 @@ if (-not $plan) {
 if ($plan) { powercfg -setactive $($plan.InstanceID.Split('{')[1].TrimEnd('}')) }
 
 # 7. Priority & Network Throttling
+Show-Progress "7" "Optimizing CPU Priority & Network Throttling"
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" "Win32PrioritySeparation" 268409095 "DWord"
 Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "NetworkThrottlingIndex" 4294967295 "DWord"
 Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "SystemResponsiveness" 0 "DWord"
 
 # 8. Defender Exclusion
+Show-Progress "8" "Adding Defender Exclusion for FiveM"
 try { Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\FiveM" -ErrorAction SilentlyContinue } catch {}
 
 # 9. Disable Fullscreen Optimizations & Visual Effects
+Show-Progress "9" "Disabling Fullscreen Optimizations & Visual Effects"
 Set-Reg "HKCU:\System\GameConfigStore" "GameDVR_DXGIHonorFSEWindowsCompatible" 1
 Set-Reg "HKCU:\System\GameConfigStore" "GameDVR_EFSEFeatureFlags" 0
 Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" 2 "DWord"
 
 # 10. QoS Policy (FiveMLag)
+Show-Progress "10" "Configuring Advanced QoS Network Policy"
 $WinEdition = (Get-CimInstance Win32_OperatingSystem).Caption
 if ($WinEdition -notmatch "Home") {
     Remove-NetQosPolicy -Name "FiveMLag*" -Confirm:$false -ErrorAction SilentlyContinue

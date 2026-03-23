@@ -138,10 +138,10 @@ Set-Reg "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" "AllowGameDVR" 0
 Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" "GlobalUserDisabled" 1
 Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" "BingSearchEnabled" 0
 
-# 4. Mouse Acceleration (String or default values)
-Set-Reg "HKCU:\Control Panel\Mouse" "MouseSpeed" "0" "String"
-Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold1" "0" "String"
-Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold2" "0" "String"
+# 4. Mouse Acceleration (Commented out to prevent users feeling the mouse is "slower")
+# Set-Reg "HKCU:\Control Panel\Mouse" "MouseSpeed" "0" "String"
+# Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold1" "0" "String"
+# Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold2" "0" "String"
 
 # 5. Hibernation
 powercfg.exe /hibernate off

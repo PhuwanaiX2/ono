@@ -52,3 +52,32 @@ irm https://raw.githubusercontent.com/PhuwanaiX2/ono/main/FiveM_Restore.ps1 | ie
 
 > **💡 Tips สำหรับ Admin:** 
 > คุณสามารถแก้ไขตัวแปร `$ShopName = "OONO Shop"` ในไฟล์โค้ดของสคริปต์ เพื่อเปลี่ยนชื่อบนหน้าต่างคอนโซลเป็นชื่อแบรนด์ของคุณเองได้เลย!
+
+---
+
+## ⚙️ การตั้งค่าเพิ่มเติมด้วยตัวเอง (Manual Settings สำหรับช่าง)
+
+นอกเหนือจากสคริปต์ Optimizer แล้ว ช่างสามารถตั้งค่า 2 ส่วนนี้เพิ่มเติมด้วยตัวเองเพื่อให้ลูกค้าเล่น FiveM ได้ลื่นไหลที่สุดและดัน FPS ให้ทะลุขีดจำกัดสูงสุด:
+
+### 1. การตั้งค่า \`citizen.fx.ini\` (ในโฟลเดอร์ FiveM Application Data)
+เปิดไฟล์ \`citizen.fx.ini\` ด้วย Notepad จากนั้นให้เพิ่มบรรทัดตั้งค่าระดับสูงลงไป:
+\`\`\`ini
+[Game]
+UpdateChannel=production
+; บังคับใช้ GPU ตัวหลักในการประมวลผลเสมอ ป้องกันอาการออนบอร์ดแอบแย่งซีน
+ConVar.sys_info_override_vram_size=8192 ; (ใส่เลข RAM ของการ์ดจอเป็น MB เช่น การ์ดจอ 8GB ใส่ 8192, 12GB ใส่ 12288)
+[Video]
+; ล็อคคิวงานกราฟิกให้การ์ดจอแยกเท่านั้น
+DedicatedVideoMemory=8192 ; (ใส่เท่ากับด้านบน)
+\`\`\`
+
+### 2. การตั้งค่า NVIDIA Control Panel (คลิกขวาหน้าเดสก์ท็อป)
+สำหรับลูกค้าที่ใช้การ์ดจอค่ายเขียว แนะนำให้เข้าไปที่ **Manage 3D Settings** -> **Program Settings** -> และเลือกเพิ่มไฟล์ \`FiveM.exe\` และ \`GTA5.exe\`:
+- **Power management mode:** \`Prefer maximum performance\` *(สำคัญมาก ทำให้ไฟเลี้ยงการ์ดจอไม่ดรอปตอนจังหวะบวก)*
+- **Texture filtering - Quality:** \`High performance\`
+- **Low Latency Mode:** \`Ultra\` หรือ \`On\` *(เคล็ดลับสำหรับสายรำ ทำให้เมาส์ติดหน้าจอไม่ดีเลย์)*
+- **Max Frame Rate:** ปิด (\`Off\`) *(แนะนำให้ไปจำกัด FPS ใน Setting บนเซิร์ฟเวอร์แทนการล็อคที่ไดร์เวอร์)*
+- **Threaded optimization:** \`On\`
+- **Vertical sync:** \`Off\`
+
+*เมื่อทำครบทั้งรันสคริปต์ \`FiveM_Optimizer_V2.ps1\` ควบคู่กับการตั้งค่า Manual ตรงนี้ รับประกันว่าเครื่องลูกค้าจะตอบสนองเมาส์ได้ไวที่สุดแน่นอน 100%!*

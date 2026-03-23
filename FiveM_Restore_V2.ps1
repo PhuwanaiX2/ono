@@ -55,6 +55,7 @@ Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\USB" -Name "D
 # 5. Timer Tweaks (BCDEdit Revert)
 bcdedit /deletevalue useplatformtick | Out-Null
 bcdedit /deletevalue disabledynamictick | Out-Null
+bcdedit /deletevalue useplatformclock | Out-Null
 
 # 6. Hibernation
 powercfg.exe /hibernate on
@@ -69,6 +70,7 @@ if ($ultPlan) {
 
 # 8. Priority & Network Throttling
 Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name Win32PrioritySeparation -Value 2 -Type DWord -Force -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" -Name "IRQ8Priority" -Force -ErrorAction SilentlyContinue
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "NetworkThrottlingIndex" -Value 10 -Type DWord -Force -ErrorAction SilentlyContinue
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" -Name "SystemResponsiveness" -Value 20 -Type DWord -Force -ErrorAction SilentlyContinue
 
@@ -83,6 +85,11 @@ Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Paramet
 Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name "TCPAckFrequency" -Force -ErrorAction SilentlyContinue
 Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name "TCPDelAckTicks" -Force -ErrorAction SilentlyContinue
 Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" -Name "DefaultTTL" -Force -ErrorAction SilentlyContinue
+$tcpInterfaces = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\*" -ErrorAction SilentlyContinue
+foreach ($iface in $tcpInterfaces) {
+    Remove-ItemProperty -Path $iface.PSPath -Name "TcpNoDelay" -Force -ErrorAction SilentlyContinue
+    Remove-ItemProperty -Path $iface.PSPath -Name "TcpAckFrequency" -Force -ErrorAction SilentlyContinue
+}
 
 # 11. Remove Defender Exclusion
 try { Remove-MpPreference -ExclusionPath "$env:LOCALAPPDATA\FiveM" -ErrorAction SilentlyContinue } catch {}
@@ -95,9 +102,37 @@ Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer
 # 13. QoS Policy Remove
 Remove-NetQosPolicy -Name "FiveMLag*" -Confirm:$false -ErrorAction SilentlyContinue
 
+# 14. Memory Management (Revert)
+Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "LargeSystemCache" -Force -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "NonPagedPoolQuota" -Force -ErrorAction SilentlyContinue
+
+# 15. Re-enable GPU Services (NVIDIA)
+"NvTelemetryContainer","NvNetworkService","NvDisplay.ContainerLocalSystem" | ForEach-Object { 
+    Set-Service -Name $_ -StartupType Automatic -ErrorAction SilentlyContinue
+    Start-Service -Name $_ -ErrorAction SilentlyContinue 
+}
+
+# 16. Core Isolation (Revert to default)
+Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" -Name "Enabled" -Force -ErrorAction SilentlyContinue
+
+# 17. Restore FTH
+Set-ItemProperty -Path "HKLM:\Software\Microsoft\FTH" -Name "Enabled" -Value 1 -Type DWord -Force -ErrorAction SilentlyContinue
+
+# 18. Restore Power Throttling
+Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling" -Name "PowerThrottlingOff" -Force -ErrorAction SilentlyContinue
+
+# 19. Restore Delivery Optimization
+Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc" -Name "Start" -Value 3 -Type DWord -Force -ErrorAction SilentlyContinue
+
+# 20. Restore HAGS
+Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "HwSchMode" -Force -ErrorAction SilentlyContinue
+
+# 21. Restore Network Large Send Offload (LSO)
+Remove-ItemProperty -Path "HKLM:\System\CurrentControlSet\Services\TCPIP\Parameters" -Name "DisableTaskOffload" -Force -ErrorAction SilentlyContinue
+
 Write-Host "✅ System restored to Windows defaults successfully!" -ForegroundColor Green
 
-# 14. Network Reset Feature (BONUS V2)
+# 22. Network Reset Feature (BONUS V2)
 $netReset = Read-Host "`nDo you want to reset Network Adapters and clear DNS cache? (Recommended if you had lag) (Y/N)"
 if ($netReset -match "^[Yy]$") {
     Write-Host "Resetting Network Interfaces..." -ForegroundColor Cyan

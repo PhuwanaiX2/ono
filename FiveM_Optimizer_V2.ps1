@@ -167,6 +167,7 @@ Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\USB" "DisableSelectiveSuspend" 
 # 5. Timer Tweaks (BCDEdit - Smooth Frametimes)
 bcdedit /set useplatformtick yes | Out-Null
 bcdedit /set disabledynamictick yes | Out-Null
+bcdedit /set useplatformclock false | Out-Null
 
 # 6. Hibernation
 powercfg.exe /hibernate off
@@ -181,6 +182,7 @@ if ($plan) { powercfg -setactive $($plan.InstanceID.Split('{')[1].TrimEnd('}')) 
 
 # 8. Priority & Network Throttling
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" "Win32PrioritySeparation" 268409095 "DWord"
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" "IRQ8Priority" 1 "DWord"
 Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "NetworkThrottlingIndex" 4294967295 "DWord"
 Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "SystemResponsiveness" 0 "DWord"
 
@@ -195,6 +197,11 @@ Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "TcpNoDelay" 
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "TCPAckFrequency" 1 "DWord"
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "TCPDelAckTicks" 0 "DWord"
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters" "DefaultTTL" 64 "DWord"
+$tcpInterfaces = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\Tcpip\Parameters\Interfaces\*" -ErrorAction SilentlyContinue
+foreach ($iface in $tcpInterfaces) {
+    Set-Reg $iface.PSPath "TcpNoDelay" 1 "DWord"
+    Set-Reg $iface.PSPath "TcpAckFrequency" 1 "DWord"
+}
 
 # 11. Defender Exclusion
 try { Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\FiveM" -ErrorAction SilentlyContinue } catch {}
@@ -211,6 +218,34 @@ if ($WinEdition -notmatch "Home") {
     New-NetQosPolicy -Name "FiveMLag_FiveM" -AppPathNameMatchCondition "FiveM*.exe" -NetworkProfile All -DSCPAction 1 -ErrorAction SilentlyContinue | Out-Null
     New-NetQosPolicy -Name "FiveMLag_GTA5" -AppPathNameMatchCondition "GTA5.exe" -NetworkProfile All -DSCPAction 1 -ErrorAction SilentlyContinue | Out-Null
 }
+
+# 14. Memory Management (Non-Paged Pool & Cache)
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "LargeSystemCache" 0 "DWord"
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "NonPagedPoolQuota" 0 "DWord"
+
+# 15. Disable GPU Telemetry (NVIDIA)
+"NvTelemetryContainer","NvNetworkService","NvDisplay.ContainerLocalSystem" | ForEach-Object { 
+    Stop-Service -Name $_ -Force -ErrorAction SilentlyContinue
+    Set-Service -Name $_ -StartupType Disabled -ErrorAction SilentlyContinue 
+}
+
+# 16. Disable Core Isolation (Memory Integrity - High FPS Impact)
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" "Enabled" 0 "DWord"
+
+# 17. Disable Fault Tolerant Heap (FTH)
+Set-Reg "HKLM:\Software\Microsoft\FTH" "Enabled" 0 "DWord"
+
+# 18. Disable Power Throttling
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling" "PowerThrottlingOff" 1 "DWord"
+
+# 19. Disable Delivery Optimization (P2P Background Updates)
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc" "Start" 4 "DWord"
+
+# 20. Enable Hardware-Accelerated GPU Scheduling (HAGS)
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" "HwSchMode" 2 "DWord"
+
+# 21. Disable Network Large Send Offload (LSO)
+Set-Reg "HKLM:\System\CurrentControlSet\Services\TCPIP\Parameters" "DisableTaskOffload" 1 "DWord"
 
 Write-Host "✅ All V2 settings applied successfully!" -ForegroundColor Green
 Write-Host "Please restart the PC for changes to take full effect." -ForegroundColor Yellow

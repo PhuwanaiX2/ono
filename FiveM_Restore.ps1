@@ -24,6 +24,46 @@ if (-not $env:WT_SESSION) {
             Write-Host ">> Could not switch, continuing in legacy console..." -ForegroundColor DarkYellow
         }
     }
+    
+    # Fallback: Change Legacy Console Font to MS Gothic (Supports Thai)
+    try {
+        if (-not ([System.Management.Automation.PSTypeName]'ConsoleFontHelper').Type) {
+            Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
+[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+public struct CONSOLE_FONT_INFOEX {
+    public uint cbSize;
+    public uint nFont;
+    public short dwFontSizeX;
+    public short dwFontSizeY;
+    public int FontFamily;
+    public int FontWeight;
+    [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)]
+    public string FaceName;
+}
+public class ConsoleFontHelper {
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern IntPtr GetStdHandle(int nStdHandle);
+    [DllImport("kernel32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    static extern bool SetCurrentConsoleFontEx(IntPtr hConsoleOutput, bool bMaximumWindow, ref CONSOLE_FONT_INFOEX lpConsoleCurrentFontEx);
+    public static void SetFont(string fontName, short fontSize) {
+        IntPtr handle = GetStdHandle(-11);
+        CONSOLE_FONT_INFOEX info = new CONSOLE_FONT_INFOEX();
+        info.cbSize = (uint)Marshal.SizeOf(info);
+        info.nFont = 0;
+        info.dwFontSizeX = 0;
+        info.dwFontSizeY = fontSize;
+        info.FontFamily = 54;
+        info.FontWeight = 400;
+        info.FaceName = fontName;
+        SetCurrentConsoleFontEx(handle, false, ref info);
+    }
+}
+"@ -ErrorAction SilentlyContinue
+        }
+        [ConsoleFontHelper]::SetFont("MS Gothic", 16)
+    } catch { }
 }
 
 Clear-Host

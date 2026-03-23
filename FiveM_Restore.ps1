@@ -4,43 +4,30 @@
 
 # --- 0. Admin Check ---
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
-    Write-Host "❌ กรุณาคลิกขวาที่ไฟล์นี้ แล้วเลือก 'Run as administrator'" -ForegroundColor Red
-    Read-Host "กด Enter เพื่อปิด..."
+    Write-Host "Please run as Administrator / Run as administrator" -ForegroundColor Red
+    Read-Host "Press Enter to close..."
     Exit
+}
+
+# --- 0.5 Auto-switch to Windows Terminal for Thai display ---
+if (-not $env:WT_SESSION) {
+    $wt = Get-Command wt.exe -ErrorAction SilentlyContinue
+    if ($wt) {
+        Write-Host ">> Switching to Windows Terminal for Thai support..." -ForegroundColor Yellow
+        try {
+            $tmp = "$env:TEMP\FiveM_Restore_$(Get-Random).ps1"
+            Invoke-RestMethod 'https://raw.githubusercontent.com/PhuwanaiX2/ono/main/FiveM_Restore.ps1' | Out-File $tmp -Encoding UTF8
+            Start-Process wt.exe -ArgumentList "powershell -NoProfile -ExecutionPolicy Bypass -File `"$tmp`""
+            Start-Sleep -Milliseconds 500
+            exit
+        } catch {
+            Write-Host ">> Could not switch, continuing in legacy console..." -ForegroundColor DarkYellow
+        }
+    }
 }
 
 Clear-Host
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-
-# Force TrueType Font for Thai Support
-try {
-    $fontCode = @"
-using System;
-using System.Runtime.InteropServices;
-public class ConsoleFont {
-    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-    internal struct CONSOLE_FONT_INFO_EX {
-        public uint cbSize; public uint nFont; public short dwFontSizeX; public short dwFontSizeY;
-        public int FontFamily; public int FontWeight;
-        [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 32)] public string FaceName;
-    }
-    [DllImport("kernel32.dll", SetLastError = true)] internal static extern IntPtr GetStdHandle(int nStdHandle);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] internal static extern bool GetCurrentConsoleFontEx(IntPtr hnd, bool bMax, ref CONSOLE_FONT_INFO_EX info);
-    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)] internal static extern bool SetCurrentConsoleFontEx(IntPtr hnd, bool bMax, ref CONSOLE_FONT_INFO_EX info);
-    public static void SetFont() {
-        IntPtr hnd = GetStdHandle(-11);
-        CONSOLE_FONT_INFO_EX info = new CONSOLE_FONT_INFO_EX();
-        info.cbSize = (uint)Marshal.SizeOf(info);
-        if (GetCurrentConsoleFontEx(hnd, false, ref info)) {
-            info.FaceName = "Consolas";
-            SetCurrentConsoleFontEx(hnd, false, ref info);
-        }
-    }
-}
-"@
-    Add-Type -TypeDefinition $fontCode -ErrorAction SilentlyContinue
-    [ConsoleFont]::SetFont()
-} catch {}
 
 Write-Host "=====================================================" -ForegroundColor Yellow
 Write-Host "    FiveM Optimizer - RESTORE (คืนค่าเริ่มต้น)       " -ForegroundColor Yellow

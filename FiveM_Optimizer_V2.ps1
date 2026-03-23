@@ -42,17 +42,21 @@ try { if (Test-Path "HKLM:\SOFTWARE\ReviOS") { $IsModifiedOS = $true; $ModifiedO
 
 $SystemDrive = $OS.SystemDrive
 $DiskFree = [math]::Round((Get-PSDrive ($SystemDrive.Replace(":", ""))).Free / 1GB, 1)
-$DiskType = "HDD"
+$DiskType = "Unknown Disk Type"
+$HasHDD = $false
 try {
     $PhysDisks = Get-PhysicalDisk -ErrorAction SilentlyContinue | Select-Object MediaType, BusType
+    if ($PhysDisks.MediaType -contains "HDD") { $HasHDD = $true }
+    
     if ($PhysDisks.MediaType -contains "SSD" -or $PhysDisks.BusType -contains "NVMe") {
-        $DiskType = "SSD/NVMe"
-    } elseif ($PhysDisks.MediaType -contains "HDD") {
-        $DiskType = "HDD"
+        if ($HasHDD) { $DiskType = "SSD + HDD (Mixed)" }
+        else { $DiskType = "SSD/NVMe Only" }
+    } elseif ($HasHDD) {
+        $DiskType = "HDD Only"
     } else {
         $DiskType = "Unknown Disk Type"
     }
-} catch { $DiskType = "Unknown Disk Type" }
+} catch { }
 
 Write-Host "`n💻 PC Hardware Specifications:" -ForegroundColor Yellow
 Write-Host "   CPU      : $CPU"
@@ -93,8 +97,9 @@ else {
     $Recommendation += "   - ✅ High-Performance CPU: The script will unlock 100% priority for the game.`n"
 }
 
-if ($DiskType -eq "HDD") {
-    $Recommendation += "   - ⚠️ HDD Detected: Playing FiveM on a Hard Drive is not recommended. Consider upgrading to an SSD.`n"
+if ($HasHDD) {
+    $Recommendation += "   - ⚠️ HDD Detected: Playing FiveM or GTA V on an HDD can cause map texture loss.`n"
+    $Recommendation += "     (SysMain/Superfetch will be kept ENABLED to help your HDD load faster.)`n"
 }
 if ($DiskFree -lt 30) {
     $Recommendation += "   - ⚠️ Low Disk Space (${DiskFree} GB): Need at least 30 GB free for smooth cache allocations.`n"
@@ -150,13 +155,13 @@ Set-Reg "HKCU:\System\GameConfigStore" "GameDVR_Enabled" 0
 Set-Reg "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR" "AppCaptureEnabled" 0
 Set-Reg "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" "AllowGameDVR" 0
 
-# 3. Background Apps, Bing Search, SysMain & WSearch
+# 3. Background Apps, Bing Search & SysMain
 Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\BackgroundAccessApplications" "GlobalUserDisabled" 1
 Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" "BingSearchEnabled" 0
-Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue
-Set-Service -Name SysMain -StartupType Disabled -ErrorAction SilentlyContinue
-Stop-Service -Name WSearch -Force -ErrorAction SilentlyContinue
-Set-Service -Name WSearch -StartupType Disabled -ErrorAction SilentlyContinue
+if (-not $HasHDD) {
+    Stop-Service -Name SysMain -Force -ErrorAction SilentlyContinue
+    Set-Service -Name SysMain -StartupType Disabled -ErrorAction SilentlyContinue
+}
 
 # 4. Mouse Acceleration & USB Input Lag (Raw input 1:1)
 Set-Reg "HKCU:\Control Panel\Mouse" "MouseSpeed" "0" "String"
@@ -164,10 +169,10 @@ Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold1" "0" "String"
 Set-Reg "HKCU:\Control Panel\Mouse" "MouseThreshold2" "0" "String"
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\USB" "DisableSelectiveSuspend" 1 "DWord"
 
-# 5. Timer Tweaks (BCDEdit - Smooth Frametimes)
-bcdedit /set useplatformtick yes | Out-Null
-bcdedit /set disabledynamictick yes | Out-Null
-bcdedit /set useplatformclock false | Out-Null
+# 5. Timer Tweaks (BCDEdit - Let Windows Handle Modern HPET)
+bcdedit /deletevalue useplatformtick 2>$null | Out-Null
+bcdedit /deletevalue disabledynamictick 2>$null | Out-Null
+bcdedit /deletevalue useplatformclock 2>$null | Out-Null
 
 # 6. Hibernation
 powercfg.exe /hibernate off
@@ -181,7 +186,7 @@ if (-not $plan) {
 if ($plan) { powercfg -setactive $($plan.InstanceID.Split('{')[1].TrimEnd('}')) }
 
 # 8. Priority & Network Throttling
-Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" "Win32PrioritySeparation" 268409095 "DWord"
+Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" "Win32PrioritySeparation" 38 "DWord"
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\PriorityControl" "IRQ8Priority" 1 "DWord"
 Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "NetworkThrottlingIndex" 4294967295 "DWord"
 Set-Reg "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Multimedia\SystemProfile" "SystemResponsiveness" 0 "DWord"
@@ -209,14 +214,13 @@ try { Add-MpPreference -ExclusionPath "$env:LOCALAPPDATA\FiveM" -ErrorAction Sil
 # 12. Disable Fullscreen Optimizations & Visual Effects
 Set-Reg "HKCU:\System\GameConfigStore" "GameDVR_DXGIHonorFSEWindowsCompatible" 1
 Set-Reg "HKCU:\System\GameConfigStore" "GameDVR_EFSEFeatureFlags" 0
-Set-Reg "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" "VisualFXSetting" 2 "DWord"
 
 # 13. QoS Policy (FiveMLag)
 $WinEdition = (Get-CimInstance Win32_OperatingSystem).Caption
 if ($WinEdition -notmatch "Home") {
     Remove-NetQosPolicy -Name "FiveMLag*" -Confirm:$false -ErrorAction SilentlyContinue
-    New-NetQosPolicy -Name "FiveMLag_FiveM" -AppPathNameMatchCondition "FiveM*.exe" -NetworkProfile All -DSCPAction 1 -ErrorAction SilentlyContinue | Out-Null
-    New-NetQosPolicy -Name "FiveMLag_GTA5" -AppPathNameMatchCondition "GTA5.exe" -NetworkProfile All -DSCPAction 1 -ErrorAction SilentlyContinue | Out-Null
+    New-NetQosPolicy -Name "FiveMLag_FiveM" -AppPathNameMatchCondition "FiveM*.exe" -NetworkProfile All -DSCPAction 46 -ErrorAction SilentlyContinue | Out-Null
+    New-NetQosPolicy -Name "FiveMLag_GTA5" -AppPathNameMatchCondition "GTA5.exe" -NetworkProfile All -DSCPAction 46 -ErrorAction SilentlyContinue | Out-Null
 }
 
 # 14. Memory Management (Non-Paged Pool & Cache)
@@ -224,7 +228,7 @@ Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Managemen
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "NonPagedPoolQuota" 0 "DWord"
 
 # 15. Disable GPU Telemetry (NVIDIA)
-"NvTelemetryContainer","NvNetworkService","NvDisplay.ContainerLocalSystem" | ForEach-Object { 
+"NvTelemetryContainer","NvNetworkService" | ForEach-Object { 
     Stop-Service -Name $_ -Force -ErrorAction SilentlyContinue
     Set-Service -Name $_ -StartupType Disabled -ErrorAction SilentlyContinue 
 }
@@ -238,8 +242,8 @@ Set-Reg "HKLM:\Software\Microsoft\FTH" "Enabled" 0 "DWord"
 # 18. Disable Power Throttling
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling" "PowerThrottlingOff" 1 "DWord"
 
-# 19. Disable Delivery Optimization (P2P Background Updates)
-Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc" "Start" 4 "DWord"
+# 19. Optimize Delivery Optimization (Bypass P2P)
+Set-Reg "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization" "DODownloadMode" 0 "DWord"
 
 # 20. Enable Hardware-Accelerated GPU Scheduling (HAGS)
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" "HwSchMode" 2 "DWord"

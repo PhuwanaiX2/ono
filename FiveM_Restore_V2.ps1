@@ -43,8 +43,6 @@ Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Backgrou
 Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Search" -Name BingSearchEnabled -Value 1 -Force -ErrorAction SilentlyContinue
 Set-Service -Name SysMain -StartupType Automatic -ErrorAction SilentlyContinue
 Start-Service -Name SysMain -ErrorAction SilentlyContinue
-Set-Service -Name WSearch -StartupType Automatic -ErrorAction SilentlyContinue
-Start-Service -Name WSearch -ErrorAction SilentlyContinue
 
 # 4. Mouse Acceleration & USB
 Set-ItemProperty -Path "HKCU:\Control Panel\Mouse" -Name MouseSpeed -Value "1" -Type String -Force -ErrorAction SilentlyContinue
@@ -94,10 +92,9 @@ foreach ($iface in $tcpInterfaces) {
 # 11. Remove Defender Exclusion
 try { Remove-MpPreference -ExclusionPath "$env:LOCALAPPDATA\FiveM" -ErrorAction SilentlyContinue } catch {}
 
-# 12. Restore Fullscreen Optimizations & Visual Effects
+# 12. Restore Fullscreen Optimizations
 Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_DXGIHonorFSEWindowsCompatible" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
 Set-ItemProperty -Path "HKCU:\System\GameConfigStore" -Name "GameDVR_EFSEFeatureFlags" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
-Set-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Explorer\VisualEffects" -Name "VisualFXSetting" -Value 0 -Type DWord -Force -ErrorAction SilentlyContinue
 
 # 13. QoS Policy Remove
 Remove-NetQosPolicy -Name "FiveMLag*" -Confirm:$false -ErrorAction SilentlyContinue
@@ -107,7 +104,7 @@ Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manage
 Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "NonPagedPoolQuota" -Force -ErrorAction SilentlyContinue
 
 # 15. Re-enable GPU Services (NVIDIA)
-"NvTelemetryContainer","NvNetworkService","NvDisplay.ContainerLocalSystem" | ForEach-Object { 
+"NvTelemetryContainer","NvNetworkService" | ForEach-Object { 
     Set-Service -Name $_ -StartupType Automatic -ErrorAction SilentlyContinue
     Start-Service -Name $_ -ErrorAction SilentlyContinue 
 }
@@ -122,7 +119,7 @@ Set-ItemProperty -Path "HKLM:\Software\Microsoft\FTH" -Name "Enabled" -Value 1 -
 Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Power\PowerThrottling" -Name "PowerThrottlingOff" -Force -ErrorAction SilentlyContinue
 
 # 19. Restore Delivery Optimization
-Set-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\DoSvc" -Name "Start" -Value 3 -Type DWord -Force -ErrorAction SilentlyContinue
+Remove-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\DeliveryOptimization" -Name "DODownloadMode" -Force -ErrorAction SilentlyContinue
 
 # 20. Restore HAGS
 Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\GraphicsDrivers" -Name "HwSchMode" -Force -ErrorAction SilentlyContinue

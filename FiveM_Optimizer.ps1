@@ -16,6 +16,87 @@ Write-Host "   FiveM Quick Optimizer - Admin Edition     " -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "This script will silently apply all performance tweaks." -ForegroundColor White
 
+# --- Hardware Detection ---
+$CPU = (Get-CimInstance Win32_Processor | Select-Object -First 1).Name
+$RAM_Bytes = (Get-CimInstance Win32_PhysicalMemory | Measure-Object Capacity -Sum).Sum
+$RAM = [math]::Round($RAM_Bytes / 1GB)
+$GPU = (Get-CimInstance Win32_VideoController | Where-Object { $_.Name -notmatch "Microsoft Basic|Remote" } | Select-Object -First 1).Name
+if (-not $GPU) { $GPU = (Get-CimInstance Win32_VideoController | Select-Object -First 1).Name }
+if (-not $GPU) { $GPU = "Unknown GPU / Integrated Graphics" }
+
+$WinEdition = (Get-CimInstance Win32_OperatingSystem).Caption
+$IsHomeSKU = $WinEdition -match "Home"
+
+$IsModifiedOS = $false
+$ModifiedOSName = ""
+if ($WinEdition -match "Atlas|Ghost|Revi|FLAVOR|Kernel|Tiny|Ameliorated") { $IsModifiedOS = $true }
+try { if (Test-Path "HKLM:\SOFTWARE\AtlasOS") { $IsModifiedOS = $true; $ModifiedOSName = "AtlasOS" } } catch {}
+try { if (Test-Path "HKLM:\SOFTWARE\ReviOS") { $IsModifiedOS = $true; $ModifiedOSName = "ReviOS" } } catch {}
+
+$SystemDrive = (Get-CimInstance Win32_OperatingSystem).SystemDrive
+$DiskType = "HDD"
+try {
+    $driveLetter = $SystemDrive.Replace(":", "")
+    $diskNumber = (Get-Partition -DriveLetter $driveLetter -ErrorAction Stop).DiskNumber
+    $PhysicalDisk = Get-PhysicalDisk | Where-Object { $_.DeviceID -eq $diskNumber } | Select-Object -First 1
+    if ($PhysicalDisk.MediaType -eq "SSD" -or $PhysicalDisk.MediaType -eq "NVMe") { $DiskType = "SSD/NVMe" }
+    elseif ($PhysicalDisk.BusType -eq "NVMe") { $DiskType = "NVMe" }
+} catch { $DiskType = "Unknown" }
+$DiskFree = [math]::Round((Get-PSDrive ($SystemDrive.Replace(":", ""))).Free / 1GB, 1)
+
+Write-Host "`n💻 PC Hardware Specifications:" -ForegroundColor Yellow
+Write-Host "   CPU      : $CPU"
+Write-Host "   RAM      : ${RAM} GB"
+Write-Host "   GPU      : $GPU"
+Write-Host "   Disk     : $DiskType (Free Space on ${SystemDrive} = ${DiskFree} GB)"
+if ($IsModifiedOS -and $ModifiedOSName) {
+    Write-Host "   Windows  : $WinEdition (🔧 Modified OS: $ModifiedOSName)" -ForegroundColor Magenta
+} else {
+    Write-Host "   Windows  : $WinEdition"
+}
+Write-Host "-----------------------------------------------------"
+
+$Recommendation = ""
+$EstFPS = ""
+
+if ($RAM -lt 16) {
+    $Recommendation += "   - ⚠️ RAM under 16GB: High risk of 'texture loss' or slow map rendering.`n"
+    $Recommendation += "     (Closing background apps and disabling Xbox services is extremely necessary.)`n"
+    $EstFPS = "40 - 60 FPS (Recommend Normal/Low settings)"
+} elseif ($RAM -ge 16 -and $RAM -lt 32) {
+    $Recommendation += "   - ✅ RAM ${RAM}GB: Excellent standard for FiveM.`n"
+    $Recommendation += "     (Optimization will focus on reducing micro-stutters and input lag.)`n"
+    $EstFPS = "60 - 100+ FPS (Depends on GPU and the server's population)"
+} else {
+    $Recommendation += "   - 🚀 RAM ${RAM}GB: High-End / Streamer Tier.`n"
+    $Recommendation += "     (Optimization will maximize framerates and drastically lower input lag.)`n"
+    $EstFPS = "120 - 144+ FPS Limitless"
+}
+
+if ($CPU -match "i3|Ryzen 3|Pentium|Celeron") {
+    $Recommendation += "   - ⚠️ Entry-Level CPU: Do not leave browsers or heavy background apps open while playing.`n"
+} else {
+    $Recommendation += "   - ✅ High-Performance CPU: The script will unlock 100% priority for the game.`n"
+}
+
+if ($DiskType -eq "HDD") {
+    $Recommendation += "   - ⚠️ HDD Detected: Playing FiveM on a Hard Drive is not recommended. Consider upgrading to an SSD.`n"
+}
+if ($DiskFree -lt 30) {
+    $Recommendation += "   - ⚠️ Low Disk Space (${DiskFree} GB): Need at least 30 GB free for smooth cache allocations.`n"
+}
+if ($IsHomeSKU) {
+    $Recommendation += "   - ⚠️ Windows Home: Advanced QoS Network Policy will be skipped as it's unsupported.`n"
+}
+
+Write-Host "📊 FiveM Performance Estimation:" -ForegroundColor Cyan
+Write-Host "   Target FPS: $EstFPS" -ForegroundColor Green
+Write-Host "`n   Admin/Client Recommendations:" -ForegroundColor White
+Write-Host "$Recommendation" -ForegroundColor White
+Write-Host "   ⚠️ Note: Actual FPS depends heavily on the specific FiveM server's mods, maps, and player count." -ForegroundColor DarkYellow
+
+Write-Host "=============================================" -ForegroundColor Cyan
+
 $confirm = Read-Host "Proceed with optimization? (Y/N)"
 if ($confirm -notmatch "^[Yy]$") { Exit }
 

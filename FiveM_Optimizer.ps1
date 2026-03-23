@@ -11,6 +11,7 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 }
 
 Clear-Host
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Write-Host "=====================================================" -ForegroundColor Cyan
 Write-Host "       FiveM Master Optimizer - System Analysis       " -ForegroundColor Cyan
 Write-Host "=====================================================" -ForegroundColor Cyan
@@ -150,8 +151,8 @@ Set-RegPath "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR"
 Set-ItemProperty -Path "HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\GameDVR" -Name AppCaptureEnabled -Value 0 -Force -ErrorAction SilentlyContinue
 Set-RegPath "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR"
 Set-ItemProperty -Path "HKLM:\SOFTWARE\Policies\Microsoft\Windows\GameDVR" -Name AllowGameDVR -Value 0 -Force -ErrorAction SilentlyContinue
-Get-AppxPackage "Microsoft.XboxGamingOverlay" -AllUsers | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
-Get-AppxPackage "Microsoft.XboxSpeechToTextOverlay" -AllUsers | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue
+Get-AppxPackage "Microsoft.XboxGamingOverlay" -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue 2>$null
+Get-AppxPackage "Microsoft.XboxSpeechToTextOverlay" -AllUsers -ErrorAction SilentlyContinue | Remove-AppxPackage -AllUsers -ErrorAction SilentlyContinue 2>$null
 
 # 3. Disable Background Apps
 Write-Host "[3/14] Disabling Start Menu Background Apps..."

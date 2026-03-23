@@ -10,6 +10,7 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 }
 
 Clear-Host
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 Write-Host "=====================================================" -ForegroundColor Yellow
 Write-Host "    FiveM Optimizer - RESTORE (คืนค่าเริ่มต้น)       " -ForegroundColor Yellow
 Write-Host "=====================================================" -ForegroundColor Yellow

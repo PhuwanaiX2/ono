@@ -2,6 +2,11 @@
 # FiveM Dedicated PC Optimization Script (Fast Admin Edition)
 # ==============================================================================
 
+# --- SHOP/BRAND SETTINGS ---
+# คุณสามาถเปลี่ยนชื่อร้านหรือทีมงานของคุณตรงนี้ให้ลูกค้าเห็นได้
+$ShopName = "OONO Shop"
+# ---------------------------
+
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "Please run as Administrator." -ForegroundColor Red
     Read-Host "Press Enter to close..."
@@ -12,7 +17,7 @@ Clear-Host
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 Write-Host "=============================================" -ForegroundColor Cyan
-Write-Host "   FiveM Quick Optimizer - Admin Edition     " -ForegroundColor Cyan
+Write-Host "   $ShopName - Performance Optimizer         " -ForegroundColor Cyan
 Write-Host "=============================================" -ForegroundColor Cyan
 Write-Host "This script will silently apply all performance tweaks." -ForegroundColor White
 

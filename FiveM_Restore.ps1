@@ -2,6 +2,11 @@
 # FiveM Optimizer - RESTORE (Fast Admin Edition)
 # ==============================================================================
 
+# --- SHOP/BRAND SETTINGS ---
+# คุณสามาถเปลี่ยนชื่อร้านหรือทีมงานของคุณตรงนี้ให้ลูกค้าเห็นได้
+$ShopName = "OONO Shop"
+# ---------------------------
+
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Host "Please run as Administrator." -ForegroundColor Red
     Read-Host "Press Enter to close..."
@@ -12,7 +17,7 @@ Clear-Host
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
 
 Write-Host "=============================================" -ForegroundColor Yellow
-Write-Host "    FiveM Optimizer - RESTORE DEFAULTS       " -ForegroundColor Yellow
+Write-Host "    $ShopName - RESTORE DEFAULTS             " -ForegroundColor Yellow
 Write-Host "=============================================" -ForegroundColor Yellow
 Write-Host "This will revert your system to Windows default settings." -ForegroundColor White
 

@@ -103,11 +103,6 @@ Remove-NetQosPolicy -Name "FiveMLag*" -Confirm:$false -ErrorAction SilentlyConti
 Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "LargeSystemCache" -Force -ErrorAction SilentlyContinue
 Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" -Name "NonPagedPoolQuota" -Force -ErrorAction SilentlyContinue
 
-# 15. Re-enable GPU Services (NVIDIA)
-"NvTelemetryContainer","NvNetworkService" | ForEach-Object { 
-    Set-Service -Name $_ -StartupType Automatic -ErrorAction SilentlyContinue
-    Start-Service -Name $_ -ErrorAction SilentlyContinue 
-}
 
 # 16. Core Isolation (Revert to default)
 Remove-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" -Name "Enabled" -Force -ErrorAction SilentlyContinue

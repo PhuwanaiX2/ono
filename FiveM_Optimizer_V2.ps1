@@ -219,19 +219,17 @@ Set-Reg "HKCU:\System\GameConfigStore" "GameDVR_EFSEFeatureFlags" 0
 $WinEdition = (Get-CimInstance Win32_OperatingSystem).Caption
 if ($WinEdition -notmatch "Home") {
     Remove-NetQosPolicy -Name "FiveMLag*" -Confirm:$false -ErrorAction SilentlyContinue
-    New-NetQosPolicy -Name "FiveMLag_FiveM" -AppPathNameMatchCondition "FiveM*.exe" -NetworkProfile All -DSCPAction 46 -ErrorAction SilentlyContinue | Out-Null
-    New-NetQosPolicy -Name "FiveMLag_GTA5" -AppPathNameMatchCondition "GTA5.exe" -NetworkProfile All -DSCPAction 46 -ErrorAction SilentlyContinue | Out-Null
+    $qosApps = @("FiveM.exe", "GTA5.exe", "FiveM_b2545_GTAProcess.exe", "FiveM_b2699_GTAProcess.exe", "FiveM_b2802_GTAProcess.exe", "FiveM_b3095_GTAProcess.exe", "FiveM_b3258_GTAProcess.exe")
+    foreach ($app in $qosApps) {
+        $policyName = "FiveMLag_" + ($app -replace ".exe","")
+        New-NetQosPolicy -Name $policyName -AppPathNameMatchCondition $app -NetworkProfile All -DSCPAction 46 -ErrorAction SilentlyContinue | Out-Null
+    }
 }
 
 # 14. Memory Management (Non-Paged Pool & Cache)
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "LargeSystemCache" 0 "DWord"
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\Session Manager\Memory Management" "NonPagedPoolQuota" 0 "DWord"
 
-# 15. Disable GPU Telemetry (NVIDIA)
-"NvTelemetryContainer","NvNetworkService" | ForEach-Object { 
-    Stop-Service -Name $_ -Force -ErrorAction SilentlyContinue
-    Set-Service -Name $_ -StartupType Disabled -ErrorAction SilentlyContinue 
-}
 
 # 16. Disable Core Isolation (Memory Integrity - High FPS Impact)
 Set-Reg "HKLM:\SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity" "Enabled" 0 "DWord"
